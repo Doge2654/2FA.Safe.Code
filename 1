@@ -1,0 +1,94 @@
+// 继电器控制引脚
+const int RELAYPIN = 11; // 你可以根据实际连接的引脚修改这个值
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(RELAYPIN, OUTPUT);   // 设置继电器控制引脚为输出
+
+  // 设置行引脚为输出，列引脚为输入
+  pinMode(ROW1, OUTPUT);
+  pinMode(ROW2, OUTPUT);
+  pinMode(ROW3, OUTPUT);
+  pinMode(ROW4, OUTPUT);
+  pinMode(COL1, INPUT_PULLUP);
+  pinMode(COL2, INPUT_PULLUP);
+  pinMode(COL3, INPUT_PULLUP);
+  pinMode(COL4, INPUT_PULLUP);
+
+  // 初始将所有行设为 HIGH
+  digitalWrite(ROW1, HIGH);
+  digitalWrite(ROW2, HIGH);
+  digitalWrite(ROW3, HIGH);
+  digitalWrite(ROW4, HIGH);
+  digitalWrite(RELAYPIN, LOW); // 确保继电器初始状态为关闭
+
+  Serial.println("Please enter password:");
+}
+
+void loop() {
+  // 扫描每一行
+  for (int i = 0; i < 4; i++) {
+    // 将当前行拉低，其他行保持 HIGH
+    digitalWrite(ROW1, HIGH);
+    digitalWrite(ROW2, HIGH);
+    digitalWrite(ROW3, HIGH);
+    digitalWrite(ROW4, HIGH);
+
+    if (i == 0) digitalWrite(ROW1, LOW);
+    if (i == 1) digitalWrite(ROW2, LOW);
+    if (i == 2) digitalWrite(ROW3, LOW);
+    if (i == 3) digitalWrite(ROW4, LOW);
+
+    // 检测列是否有按键按下
+    if (digitalRead(COL1) == LOW) {
+      keyPressed(i, 0);
+      delay(200); // 防抖动延时
+    }
+    if (digitalRead(COL2) == LOW) {
+      keyPressed(i, 1);
+      delay(200);
+    }
+    if (digitalRead(COL3) == LOW) {
+      keyPressed(i, 2);
+      delay(200);
+    }
+    if (digitalRead(COL4) == LOW) {
+      keyPressed(i, 3);
+      delay(200);
+    }
+  }
+}
+
+void keyPressed(int row, int col) {
+  // 获取按键值
+  char key = keys[row][col];
+  Serial.print("Key pressed: ");
+  Serial.println(key);
+
+  // 只有在按下 * 和 # 以外的键时才将其添加到密码中
+  if (key != '*' && key != '#') {
+    pasword2 += key;  // 将按键值添加到输入的密码中
+    Serial.println("Current password input: " + pasword2);  // 打印当前输入的密码
+  }
+
+  // 如果按下 * 键，确认输入的密码
+  if (key == '*') {
+    if (pasword2 == pasword1) {
+      // 如果密码正确，激活继电器打开电磁锁
+      Serial.println("Password correct! Unlocking the door...");
+      digitalWrite(RELAYPIN, HIGH);   // 激活继电器
+      delay(1000);  // 电磁锁保持开启状态1秒
+      digitalWrite(RELAYPIN, LOW);    // 关闭继电器
+    } else {
+      // 如果密码错误
+      Serial.println("Incorrect password!");
+    }
+    pasword2 = "";  // 清空输入密码
+  }
+
+  // 如果按下#键，清除输入的密码
+  if (key == '#') {
+    pasword2 = "";  // 清空密码
+    Serial.println("Password input cleared.");
+  }
+}
