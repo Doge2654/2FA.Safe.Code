@@ -1,5 +1,5 @@
-// 继电器控制引脚
-const int RELAYPIN = 11; // 你可以根据实际连接的引脚修改这个值
+const int BUZZERPIN = 11;  // 蜂鸣器引脚
+const int LEDPIN = 13;     // LED 引脚
 
 // 设置密码
 String pasword1 = "12345";  // 你可以替换为任何密码
@@ -23,15 +23,18 @@ char keys[4][4] = {
   {'7', '8', '9', 'C'},
   {'*', '0', '#', 'D'}
 };
+
 void setup() {
   Serial.begin(9600);
-  pinMode(RELAYPIN, OUTPUT);   // 设置继电器控制引脚为输出
+  pinMode(BUZZERPIN, OUTPUT);  // 设置蜂鸣器为输出
+  pinMode(LEDPIN, OUTPUT);     // 设置 LED 为输出
 
   // 设置行引脚为输出，列引脚为输入
   pinMode(ROW1, OUTPUT);
   pinMode(ROW2, OUTPUT);
   pinMode(ROW3, OUTPUT);
   pinMode(ROW4, OUTPUT);
+
   pinMode(COL1, INPUT_PULLUP);
   pinMode(COL2, INPUT_PULLUP);
   pinMode(COL3, INPUT_PULLUP);
@@ -42,7 +45,9 @@ void setup() {
   digitalWrite(ROW2, HIGH);
   digitalWrite(ROW3, HIGH);
   digitalWrite(ROW4, HIGH);
-  digitalWrite(RELAYPIN, LOW); // 确保继电器初始状态为关闭
+
+  // 初始关闭 LED
+  digitalWrite(LEDPIN, LOW);
 
   Serial.println("Please enter password:");
 }
@@ -87,8 +92,14 @@ void keyPressed(int row, int col) {
   Serial.print("Key pressed: ");
   Serial.println(key);
 
+  // 蜂鸣器反馈
+  digitalWrite(BUZZERPIN, HIGH);
+  delay(100);
+  digitalWrite(BUZZERPIN, LOW);
+
   // 只有在按下 * 和 # 以外的键时才将其添加到密码中
   if (key != '*' && key != '#') {
+    p = pasword2.length();
     pasword2 += key;  // 将按键值添加到输入的密码中
     Serial.println("Current password input: " + pasword2);  // 打印当前输入的密码
   }
@@ -96,14 +107,17 @@ void keyPressed(int row, int col) {
   // 如果按下 * 键，确认输入的密码
   if (key == '*') {
     if (pasword2 == pasword1) {
-      // 如果密码正确，激活继电器打开电磁锁
-      Serial.println("Password correct! Unlocking the door...");
-      digitalWrite(RELAYPIN, HIGH);   // 激活继电器
-      delay(1000);  // 电磁锁保持开启状态1秒
-      digitalWrite(RELAYPIN, LOW);    // 关闭继电器
+      // 如果密码正确，点亮 LED 3 秒
+      Serial.println("Password correct!");
+      digitalWrite(LEDPIN, HIGH);  // 点亮 LED
+      delay(3000);                // 保持 LED 亮 3 秒
+      digitalWrite(LEDPIN, LOW);   // 关闭 LED
     } else {
-      // 如果密码错误
+      // 如果密码错误，蜂鸣器响起
       Serial.println("Incorrect password!");
+      digitalWrite(BUZZERPIN, HIGH);  // 错误反馈
+      delay(1000);
+      digitalWrite(BUZZERPIN, LOW);
     }
     pasword2 = "";  // 清空输入密码
   }
