@@ -1,0 +1,402 @@
+#include <Adafruit_Fingerprint.h>
+
+// Using hardware serial
+#define mySerial Serial1
+
+Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
+
+#define GREEN_LED_PIN 12  // Green LED pin
+#define RED_LED_PIN 13    // Red LED pin
+
+// Define the rows and columns for the 4x4 keypad
+const int ROW1 = 9;
+const int ROW2 = 8;
+const int ROW3 = 7;
+const int ROW4 = 6;
+const int COL1 = 5;
+const int COL2 = 4;
+const int COL3 = 3;
+const int COL4 = 2;
+
+// Define keypad keys
+char keys[4][4] = {
+  {'1', '2', '3', 'A'},
+  {'4', '5', '6', 'B'},
+  {'7', '8', '9', 'C'},
+  {'*', '0', '#', 'D'}
+};
+
+// Set password
+String pasword1 = "12345";  // Initial correct password
+String pasword2 = "";       // Temporarily store entered password
+
+void setup() {
+  Serial.begin(9600);
+  while (!Serial);  // For Yun/Leo/Micro/Zero platforms
+  delay(100);
+  Serial.println("\n\nAdafruit Fingerprint System");
+
+  // Initialize LED pins
+  pinMode(GREEN_LED_PIN, OUTPUT);
+  pinMode(RED_LED_PIN, OUTPUT);
+  digitalWrite(GREEN_LED_PIN, LOW);  // Turn off green LED initially
+  digitalWrite(RED_LED_PIN, LOW);    // Turn off red LED initially
+
+  // Set row pins as outputs and column pins as inputs with pull-up resistors enabled
+  pinMode(ROW1, OUTPUT);
+  pinMode(ROW2, OUTPUT);
+  pinMode(ROW3, OUTPUT);
+  pinMode(ROW4, OUTPUT);
+  pinMode(COL1, INPUT_PULLUP);
+  pinMode(COL2, INPUT_PULLUP);
+  pinMode(COL3, INPUT_PULLUP);
+  pinMode(COL4, INPUT_PULLUP);
+
+  // Initially set rows to HIGH
+  digitalWrite(ROW1, HIGH);
+  digitalWrite(ROW2, HIGH);
+  digitalWrite(ROW3, HIGH);
+  digitalWrite(ROW4, HIGH);
+
+  // Initialize fingerprint sensor
+  finger.begin(57600);
+  delay(5);
+
+  if (finger.verifyPassword()) {
+    Serial.println("Found fingerprint sensor!");
+  } else {
+    Serial.println("Fingerprint sensor not found :(");
+    while (1) { delay(1); }
+  }
+}
+
+void loop() {
+  // Scan the keypad
+  for (int i = 0; i < 4; i++) {
+    // Set all rows HIGH
+    digitalWrite(ROW1, HIGH);
+    digitalWrite(ROW2, HIGH);
+    digitalWrite(ROW3, HIGH);
+    digitalWrite(ROW4, HIGH);
+    // Pull one row LOW at a time
+    if (i == 0) digitalWrite(ROW1, LOW);
+    if (i == 1) digitalWrite(ROW2, LOW);
+    if (i == 2) digitalWrite(ROW3, LOW);
+    if (i == 3) digitalWrite(ROW4, LOW);
+
+    // Check each column for a key press
+    if (digitalRead(COL1) == LOW) {
+      keyPressed(i, 0);
+      delay(200);  // Debounce delay
+    }
+    if (digitalRead(COL2) == LOW) {
+      keyPressed(i, 1);
+      delay(200);
+    }
+    if (digitalRead(COL3) == LOW) {
+      keyPressed(i, 2);
+      delay(200);
+    }
+    if (digitalRead(COL4) == LOW) {
+      keyPressed(i, 3);
+      delay(200);
+    }
+  }
+}
+
+// Key press handling function:
+// Press 'A' to enter fingerprint registration (first enter slot number);
+// Press 'B' to start dual verification (fingerprint + password);
+// Press 'C' to start password change.
+// At any time during input, pressing 'D' will cancel the current operation.
+void keyPressed(int row, int col) {
+  char key = keys[row][col];
+  Serial.print("Key pressed: ");
+  Serial.println(key);
+
+  if (key == 'A') {
+    // Fingerprint registration: first get registration slot (1-100)
+    Serial.println("Please enter the fingerprint registration slot (1-100), then press '*' to confirm:");
+    int slot = getNumberFromKeypad();
+    if (slot == -1) {  // -1 indicates cancellation
+      Serial.println("Operation canceled.");
+      return;
+    }
+    if (slot < 1 || slot > 100) {
+      Serial.println("Invalid slot number, please enter a number between 1 and 100.");
+      return;
+    }
+    Serial.print("Starting fingerprint registration at slot ");
+    Serial.print(slot);
+    Serial.println("...");
+    enrollFingerprint(slot);
+  }
+  else if (key == 'B') {
+    Serial.println("Starting dual verification (Fingerprint + Password)...");
+    dualVerification();
+  }
+  else if (key == 'C') {
+    Serial.println("Starting password change...");
+    changePassword();
+  }
+  // Other keys are ignored and not added to password input
+}
+
+// Get the key value (blocking method). Returns '\0' if no key is pressed.
+char getKeyFromKeypad() {
+  for (int i = 0; i < 4; i++) {
+    digitalWrite(ROW1, HIGH);
+    digitalWrite(ROW2, HIGH);
+    digitalWrite(ROW3, HIGH);
+    digitalWrite(ROW4, HIGH);
+    if (i == 0) digitalWrite(ROW1, LOW);
+    if (i == 1) digitalWrite(ROW2, LOW);
+    if (i == 2) digitalWrite(ROW3, LOW);
+    if (i == 3) digitalWrite(ROW4, LOW);
+    if (digitalRead(COL1) == LOW) {
+      delay(200);
+      return keys[i][0];
+    }
+    if (digitalRead(COL2) == LOW) {
+      delay(200);
+      return keys[i][1];
+    }
+    if (digitalRead(COL3) == LOW) {
+      delay(200);
+      return keys[i][2];
+    }
+    if (digitalRead(COL4) == LOW) {
+      delay(200);
+      return keys[i][3];
+    }
+  }
+  return '\0';
+}
+
+// Get numeric input from the keypad (supports multiple digits).
+// Use '*' to confirm input, '#' to clear input, and 'D' to cancel the operation.
+int getNumberFromKeypad() {
+  String numStr = "";
+  while (true) {
+    char key = getKeyFromKeypad();
+    if (key != '\0') {
+      // 'D' indicates cancel operation
+      if (key == 'D') {
+        Serial.println("Operation canceled.");
+        return -1;
+      }
+      // '*' indicates confirm input
+      if (key == '*') {
+        if (numStr.length() > 0) {
+          int value = numStr.toInt();
+          return value;
+        } else {
+          Serial.println("No number entered, please enter again:");
+        }
+      }
+      // '#' indicates clear input
+      else if (key == '#') {
+        numStr = "";
+        Serial.println("Input cleared, please re-enter:");
+      }
+      // Only accept numeric keys
+      else if (key >= '0' && key <= '9') {
+        numStr += key;
+        Serial.print("Current input: ");
+        Serial.println(numStr);
+      }
+    }
+    delay(100);
+  }
+}
+
+// Get password input string (supports multiple digits) until user presses '*' to confirm.
+// Pressing '#' will clear the current input.
+// Pressing 'D' will cancel the operation.
+// Special keys 'A', 'B', and 'C' are ignored.
+String getPasswordInput(String prompt) {
+  String input = "";
+  Serial.println(prompt);
+  while (true) {
+    char k = getKeyFromKeypad();
+    if (k != '\0') {
+      // 'D' cancels the operation
+      if (k == 'D') {
+        Serial.println("Operation canceled.");
+        return "";
+      }
+      if (k == '*') { // '*' confirms end of input
+        break;
+      }
+      // '#' clears the current input
+      if (k == '#') {
+        input = "";
+        Serial.println("Input cleared, please re-enter:");
+        continue;
+      }
+      // Ignore keys A, B, and C
+      if (k == 'A' || k == 'B' || k == 'C') {
+        continue;
+      }
+      input += k;
+      Serial.print("Current input: ");
+      Serial.println(input);
+    }
+    delay(100);
+  }
+  return input;
+}
+
+// Dual verification: first verify fingerprint, then prompt for password.
+// Pressing 'D' during password entry cancels the operation.
+void dualVerification() {
+  int p = -1;
+  Serial.println("Please place your finger for verification...");
+  
+  // Fingerprint verification
+  while (true) {
+    p = finger.getImage();
+    if (p == FINGERPRINT_NOFINGER) {
+      delay(100);
+      continue;
+    } else if (p != FINGERPRINT_OK) {
+      Serial.println("Fingerprint capture error.");
+      digitalWrite(RED_LED_PIN, HIGH);
+      delay(3000);
+      digitalWrite(RED_LED_PIN, LOW);
+      return;
+    } else {
+      break;
+    }
+  }
+  p = finger.image2Tz();
+  if (p != FINGERPRINT_OK) {
+    Serial.println("Fingerprint image conversion error.");
+    digitalWrite(RED_LED_PIN, HIGH);
+    delay(3000);
+    digitalWrite(RED_LED_PIN, LOW);
+    return;
+  }
+  p = finger.fingerSearch();
+  if (p != FINGERPRINT_OK) {
+    Serial.println("Fingerprint verification failed!");
+    digitalWrite(RED_LED_PIN, HIGH);
+    delay(3000);
+    digitalWrite(RED_LED_PIN, LOW);
+    return;
+  }
+  Serial.println("Fingerprint verified successfully!");
+
+  // Password verification using getPasswordInput which supports '#' to clear input and 'D' to cancel
+  pasword2 = getPasswordInput("Please enter your password, then press '*' to confirm:");
+  if(pasword2 == "") {
+    // Operation canceled or no input provided
+    return;
+  }
+  
+  if (pasword2 == pasword1) {
+    Serial.println("Password correct, verification successful!");
+    digitalWrite(GREEN_LED_PIN, HIGH);
+    delay(7000);
+    digitalWrite(GREEN_LED_PIN, LOW);
+  } else {
+    Serial.println("Incorrect password!");
+    digitalWrite(RED_LED_PIN, HIGH);
+    delay(7000);
+    digitalWrite(RED_LED_PIN, LOW);
+  }
+}
+
+// Fingerprint registration function; 'slot' is the user-specified registration slot (1-100).
+void enrollFingerprint(int slot) {
+  int p = -1;
+  Serial.println("Please place your finger for registration...");
+  while (p != FINGERPRINT_OK) {
+    p = finger.getImage();
+    switch (p) {
+      case FINGERPRINT_OK:
+        Serial.println("Fingerprint image captured successfully");
+        break;
+      case FINGERPRINT_NOFINGER:
+        break;
+      default:
+        Serial.println("Capture error");
+        break;
+    }
+  }
+
+  p = finger.image2Tz(1);
+  if (p != FINGERPRINT_OK) {
+    Serial.println("Image conversion error");
+    return;
+  }
+
+  Serial.println("Please remove your finger, then place the same finger again...");
+  delay(2000);
+
+  p = -1;
+  while (p != FINGERPRINT_OK) {
+    p = finger.getImage();
+    switch (p) {
+      case FINGERPRINT_OK:
+        Serial.println("Fingerprint image captured successfully");
+        break;
+      case FINGERPRINT_NOFINGER:
+        break;
+      default:
+        Serial.println("Capture error");
+        break;
+    }
+  }
+
+  p = finger.image2Tz(2);
+  if (p != FINGERPRINT_OK) {
+    Serial.println("Image conversion error");
+    return;
+  }
+
+  p = finger.createModel();
+  if (p != FINGERPRINT_OK) {
+    Serial.println("Error creating fingerprint model");
+    return;
+  }
+
+  Serial.println("Fingerprint model created!");
+  p = finger.storeModel(slot);  // Store fingerprint at user-specified slot
+  if (p == FINGERPRINT_OK) {
+    Serial.println("Fingerprint registration successful!");
+  } else {
+    Serial.println("Fingerprint storage error");
+  }
+}
+
+// Password change process:
+// 1. Enter current password and verify; if correct, then enter new password twice for confirmation.
+// Pressing 'D' at any prompt cancels the operation.
+void changePassword() {
+  String current = getPasswordInput("Please enter the current password, then press '*' to confirm:");
+  if(current == "") {
+    // Operation canceled
+    return;
+  }
+  if (current != pasword1) {
+    Serial.println("Current password incorrect, change failed.");
+    return;
+  }
+  
+  String newPass = getPasswordInput("Please enter the new password, then press '*' to confirm:");
+  if(newPass == "") {
+    return;
+  }
+  String confirmPass = getPasswordInput("Please re-enter the new password to confirm, then press '*' to confirm:");
+  if(confirmPass == "") {
+    return;
+  }
+  
+  if (newPass == confirmPass) {
+    pasword1 = newPass;
+    Serial.println("Password change successful!");
+  } else {
+    Serial.println("The new passwords do not match, change failed.");
+  }
+}
