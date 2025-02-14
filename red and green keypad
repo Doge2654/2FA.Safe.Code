@@ -1,9 +1,9 @@
-const int LEDPIN = 13;     // LED 引脚
+const int greenLEDPin = 12;    // 绿色 LED 引脚
+const int redLEDPin   = 13;    // 红色 LED 引脚
 
 // 设置密码
 String pasword1 = "12345";  // 你可以替换为任何密码
-String pasword2 = "";  // 当前输入的密码
-int p = 0;  // 当前输入密码的长度
+String pasword2 = "";       // 当前输入的密码
 
 // 4x4 键盘的行列定义
 const int ROW1 = 9;
@@ -25,9 +25,16 @@ char keys[4][4] = {
 
 void setup() {
   Serial.begin(9600);
-  pinMode(LEDPIN, OUTPUT);     // 设置 LED 为输出
+  
+  // 设置 LED 为输出
+  pinMode(greenLEDPin, OUTPUT);
+  pinMode(redLEDPin, OUTPUT);
+  
+  // 初始关闭 LED
+  digitalWrite(greenLEDPin, LOW);
+  digitalWrite(redLEDPin, LOW);
 
-  // 设置行引脚为输出，列引脚为输入
+  // 设置行引脚为输出，列引脚为输入并启用上拉电阻
   pinMode(ROW1, OUTPUT);
   pinMode(ROW2, OUTPUT);
   pinMode(ROW3, OUTPUT);
@@ -44,21 +51,19 @@ void setup() {
   digitalWrite(ROW3, HIGH);
   digitalWrite(ROW4, HIGH);
 
-  // 初始关闭 LED
-  digitalWrite(LEDPIN, LOW);
-
   Serial.println("Please enter password:");
 }
 
 void loop() {
   // 扫描每一行
   for (int i = 0; i < 4; i++) {
-    // 将当前行拉低，其他行保持 HIGH
+    // 将所有行先拉高
     digitalWrite(ROW1, HIGH);
     digitalWrite(ROW2, HIGH);
     digitalWrite(ROW3, HIGH);
     digitalWrite(ROW4, HIGH);
 
+    // 将当前行拉低
     if (i == 0) digitalWrite(ROW1, LOW);
     if (i == 1) digitalWrite(ROW2, LOW);
     if (i == 2) digitalWrite(ROW3, LOW);
@@ -90,36 +95,33 @@ void keyPressed(int row, int col) {
   Serial.print("Key pressed: ");
   Serial.println(key);
 
-  // 只有在按下 * 和 # 以外的键时才将其添加到密码中
+  // 当按下 * 和 # 以外的键时，将其添加到输入密码中
   if (key != '*' && key != '#') {
-    pasword2 += key;  // 将按键值添加到输入的密码中
-    Serial.println("Current password input: " + pasword2);  // 打印当前输入的密码
+    pasword2 += key;
+    Serial.println("Current password input: " + pasword2);
   }
 
-  // 如果按下 * 键，确认输入的密码
+  // 按下 * 键后确认密码
   if (key == '*') {
     if (pasword2 == pasword1) {
-      // 如果密码正确，LED灯持续亮5秒
       Serial.println("Password correct!");
-      digitalWrite(LEDPIN, HIGH);  // 点亮 LED
-      delay(5000);                // 保持 LED 亮 5 秒
-      digitalWrite(LEDPIN, LOW);   // 关闭 LED
+      // 密码正确：点亮绿色 LED 7 秒
+      digitalWrite(greenLEDPin, HIGH);
+      delay(7000);
+      digitalWrite(greenLEDPin, LOW);
     } else {
-      // 如果密码错误，LED灯闪烁5秒
       Serial.println("Incorrect password!");
-      for (int i = 0; i < 5; i++) {
-        digitalWrite(LEDPIN, HIGH);
-        delay(500);
-        digitalWrite(LEDPIN, LOW);
-        delay(500);
-      }
+      // 密码错误：点亮红色 LED 7 秒
+      digitalWrite(redLEDPin, HIGH);
+      delay(7000);
+      digitalWrite(redLEDPin, LOW);
     }
-    pasword2 = "";  // 清空输入密码
+    pasword2 = "";  // 清空输入的密码
   }
 
-  // 如果按下#键，清除输入的密码
+  // 按下 # 键时清除输入密码
   if (key == '#') {
-    pasword2 = "";  // 清空密码
+    pasword2 = "";
     Serial.println("Password input cleared.");
   }
 }
