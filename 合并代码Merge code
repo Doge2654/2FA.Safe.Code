@@ -105,7 +105,7 @@ void loop() {
 }
 
 // Key press handling function:
-// Purpose: Handles key press events and triggers corresponding actions.
+// Purpose: Handles key press events 
 // 功能：处理按键按下事件并触发相应的操作。
 // Press 'A' to enter fingerprint registration (first enter slot number);
 // Press 'B' to start dual verification (fingerprint + password);
