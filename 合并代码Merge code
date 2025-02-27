@@ -105,6 +105,8 @@ void loop() {
 }
 
 // Key press handling function:
+// Purpose: Handles key press events and triggers corresponding actions.
+// 功能：处理按键按下事件并触发相应的操作。
 // Press 'A' to enter fingerprint registration (first enter slot number);
 // Press 'B' to start dual verification (fingerprint + password);
 // Press 'C' to start password change.
@@ -143,6 +145,8 @@ void keyPressed(int row, int col) {
 }
 
 // Get the key value (blocking method). Returns '\0' if no key is pressed.
+// Purpose: Detects and returns the value of the pressed key.
+// 功能：检测并返回按下的键值。
 char getKeyFromKeypad() {
   for (int i = 0; i < 4; i++) {
     digitalWrite(ROW1, HIGH);
@@ -174,6 +178,8 @@ char getKeyFromKeypad() {
 }
 
 // Get numeric input from the keypad (supports multiple digits).
+// Purpose: Captures numeric input from the keypad.
+// 功能：从键盘捕获数字输入。
 // Use '*' to confirm input, '#' to clear input, and 'D' to cancel the operation.
 int getNumberFromKeypad() {
   String numStr = "";
@@ -211,6 +217,8 @@ int getNumberFromKeypad() {
 }
 
 // Get password input string (supports multiple digits) until user presses '*' to confirm.
+// Purpose: Captures password input from the keypad.
+// 功能：从键盘捕获密码输入。
 // Pressing '#' will clear the current input.
 // Pressing 'D' will cancel the operation.
 // Special keys 'A', 'B', and 'C' are ignored.
@@ -248,6 +256,8 @@ String getPasswordInput(String prompt) {
 }
 
 // Dual verification: first verify fingerprint, then prompt for password.
+// Purpose: Performs dual verification (fingerprint + password).
+// 功能：执行双重验证（指纹 + 密码）。
 // Pressing 'D' during password entry cancels the operation.
 void dualVerification() {
   int p = -1;
@@ -308,6 +318,8 @@ void dualVerification() {
 }
 
 // Fingerprint registration function; 'slot' is the user-specified registration slot (1-100).
+// Purpose: Registers a fingerprint and stores it in the specified slot.
+// 功能：注册指纹并将其存储到指定槽位。
 void enrollFingerprint(int slot) {
   int p = -1;
   Serial.println("Please place your finger for registration...");
@@ -371,6 +383,8 @@ void enrollFingerprint(int slot) {
 }
 
 // Password change process:
+// Purpose: Changes the system password.
+// 功能：更改系统密码。
 // 1. Enter current password and verify; if correct, then enter new password twice for confirmation.
 // Pressing 'D' at any prompt cancels the operation.
 void changePassword() {
